@@ -1,0 +1,55 @@
+version: "3.8"
+
+services:
+  airbnb-db:
+    image: postgres:16
+    container_name: airbnb-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB:  ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    ports:
+      - "${POSTGRES_HOST_PORT}:5432"
+    volumes:
+      - airbnb-db-data:/var/lib/postgresql/data
+    networks:
+      - airbnb-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d  ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  airbnb_app:
+    image:  ermaheshkumar/airbnb-backend:v1
+    container_name: airbnb_app
+    restart: unless-stopped
+    depends_on:
+      airbnb-db:
+        condition: service_healthy
+    ports:
+      - "${BACKEND_HOST_PORT}:${BACKEND_PORT}"
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      DB_URL: jdbc:postgresql://airbnb-db:5432/${POSTGRES_DB}
+      DB_USER: ${POSTGRES_USER}
+      DB_PASS: ${POSTGRES_PASSWORD}
+    networks:
+      - airbnb-network
+
+  airbnb_frontend:
+    image: ermaheshkumar/airbnb-frontend:v1
+    container_name: airbnb_frontend
+    ports:
+      - "${FRONTEND_HOST_PORT}:80"
+    networks:
+      - airbnb-network
+
+
+volumes:
+  airbnb-db-data:
+
+networks:
+  airbnb-network:
+    driver: bridge
